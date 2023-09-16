@@ -112,10 +112,12 @@ To set up OBS for VCR capture on a new machine:
     and sounds identical to what you saw in the OBS preview while recording.
 
 If your new OBS configuration is working as expected, then you may wish to start
-versioning it in [`obs/configs`](./obs/configs/). To do so, simply run
+versioning it in [`obs/configs`](./obs/configs/). To do so, close OBS and then run
 [`./bootstrap-obs-config.sh`](./bootstrap-obs-config.sh).
 
 ## Capture workflow
+
+### Recording from OBS
 
 When you're ready to start capturing video:
 
@@ -125,14 +127,40 @@ When you're ready to start capturing video:
 3. When ready to start writing video files to disk, click **Start Recording**.
 4. When finished recording the current tape or segment, click **Stop Recording**.
 
-The [`open.py`](./open.py) script automatically opens a
-**Windowed Projector (Preview)** window and sets it to the full resolution of the
-captured footage, i.e. 1440x1080.
+OBS should be configured to write timestamped `.mp4` files into the `capture/`
+directory. Once you've finished a tape, you can cut a new recording from your captured
+footage.
+
+### Cutting a new recording
+
+To "cut" a recording, we simply grab all the clips recorded from OBS for a single tape,
+and move them into a `storage/` directory, following a specific naming convention. You
+can use the [`cut.py`](./cut.py) script to handle this process:
+
+1. Verify that `capture/` contains only the clips for your desired tape
+2. Run `python cut.py <tape-id>` to move those clips to `storage/<tape-id>`
+
+For example, if we've finished recording two clips from tape 54, then we'll have a
+couple of files that look something like this:
+
+- `capture/2023-09-16 14-40-33.mp4`
+- `capture/2023-09-16 15-02-20.mp4`
+
+Running `python cut.py 54` will move those two files to:
+
+- `storage/54/54_raw.001.mp4`
+- `storage/54/54_raw.002.mp4`
 
 ## Configuring another OBS instance to stream while capturing
 
+The [`open.py`](./open.py) script automatically opens a
+**Windowed Projector (Preview)** window and sets it to the full resolution of the
+captured footage, i.e. 1440x1080, making it a suitable target window for capturing with
+another instance of OBS.
+
 If you want to stream this footage from another instance of OBS while running a
-capture, set up a **Video Capture Device** source with these settings:
+capture, run `open.py` to open the VHS-recording-only copy of OBS, the open your main
+OBS installation and set up a **Video Capture Device** source with these settings:
 
 - **Window:** `[obs64.exe]: Windowed Projector (Preview)`
 - **Capture Method:** `Windows 10 (1903 and up)`

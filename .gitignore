@@ -3,5 +3,9 @@
 /capture/*
 !/capture/.do_not_delete
 
+# Storage is where we stage recordings organized by tape: when finished capturing video
+# clips for a given tape, we can cut them to storage/<tape-id>, apporpriately named
+/storage/
+
 # The OBS install script temporarily downloads a portable OBS .zip file
 OBS-Studio-*.zip
