@@ -1,0 +1,35 @@
+# When we install a release of OBS, we get obs/bin, obs/data, and obs/obs-plugins:
+# these are binaries and data distributed with OBS, and we don't want to version them.
+bin/
+data/
+obs-plugins/
+
+# When we first launch OBS in portable mode, it'll create an obs/config directory that
+# contains the configuration data for our profile(s) and scene collection(s). This
+# config is machine-specific: it includes local file paths, GUIDs for hardware devices,
+# etc., so it's not portable between computers. We want the user to be able to freely
+# modify their config outside of source control, so we don't want to version this
+# directory either.
+config/
+
+# However, it's useful to be able to keep track of our config in source control, both
+# for reference (so the proper config is documented in case we want to replicate it on
+# a new machine) and to preserve version history as we make changes (so we can always
+# revert to a known working state). Therefore, we use a separate 'configs' directory to
+# store per-machine OBS configuration: we can then symlink 'obs/configs/myhostname' as
+# 'obs/config/obs-studio' to activate the appropriate config for our machine.
+
+# The obs/config/obs-studio directory contains a number of transient files and
+# artifacts, including crash dumps, logs, backups of config files, etc., so we'll
+# blanket-exclude the entire contents of the config directory to start...
+/configs/*/*
+
+# ...and then we'll add an exemption for the files we want to version, which is just
+# the global application config and the 'basic' directory which includes our profiles
+# and scene collections.
+!/configs/*/basic/
+!/configs/*/global.ini
+
+# Finally, OBS can write .bak files (e.g. 'basic/scenes/MySceneCollection.json.bak')
+# for certain config files, so we want to exclude those globally
+*.bak

@@ -1,0 +1,7 @@
+# Capture is the default output directory for footage recorded in OBS: keep a dummy
+# file versioned in there so that the default OBS output directory will always exist
+/capture/*
+!/capture/.do_not_delete
+
+# The OBS install script temporarily downloads a portable OBS .zip file
+OBS-Studio-*.zip
