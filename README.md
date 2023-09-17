@@ -48,14 +48,15 @@ uncompressed footage, etc.
 The [`obs/`](./obs/) directory contains a portable installation of OBS. This copy of
 OBS is used solely for capturing and recording VHS footage locally.
 
-We also have a handful of scripts used to make the video capture process easier. To
-ensure that you're ready to run these scripts:
+We also have a handful of scripts used to make the process of capturing and editing
+video easier. To ensure that you're ready to run these scripts:
 
 1. Install the latest version of [Python 3](https://www.python.org/downloads/).
 2. Install dependencies with `pip install -r requirements.txt`.
 3. Use Git Bash (or another bash-compatible shell that has access to `cmd.exe`) to
    invoke [`./install-obs.sh`](./install-obs.sh). This will install and configure a
    local, portable installation of OBS.
+4. Install [DaVinci Resolve 18](https://www.blackmagicdesign.com/products/davinciresolve).
 
 We use [`obs/configs`](./obs/configs/) to store machine-specific configuration details,
 including the OBS Profile and Scene Collection used for capture. If there's an existing
@@ -150,6 +151,19 @@ Running `python cut.py 54` will move those two files to:
 
 - `storage/54/54_raw.001.mp4`
 - `storage/54/54_raw.002.mp4`
+
+### Editing and exporting a tape
+
+Once you've got all the files for a tape organized in a `storage` subdirectory, you can
+use the [`edit.py`](./edit.py) script to automatically generate a DaVinci Resolve
+project for that tape, with the proper settings (1440x1080, 59.94 FPS) and a timeline
+prepopulated with all your clips. To create and open a project in Resolve:
+
+1. Run `python edit.py <tape-id>`
+
+For example, running `python edit.py 54` will open Resolve (if it's not already open)
+create a new project called "54", open that project, create a single timeline, and add
+both `54_raw.001.mp4` and `54_raw.002.mp4` to that timeline, in sequence.
 
 ## Configuring another OBS instance to stream while capturing
 

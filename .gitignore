@@ -9,3 +9,7 @@
 
 # The OBS install script temporarily downloads a portable OBS .zip file
 OBS-Studio-*.zip
+
+# Ignore compiled Python bytecode
+__pycache__/
+*.pyc
