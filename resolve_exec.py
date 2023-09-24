@@ -93,6 +93,18 @@ def launch_resolve() -> int:
     return p.pid
 
 
+def set_foreground_window(hwnd: int):
+    num_attempts = 5
+    for i in range(num_attempts):
+        try:
+            win32gui.SetForegroundWindow(hwnd)
+            break
+        except:
+            if i == num_attempts - 1:
+                raise
+            win32api.Sleep(100)
+
+
 def activate_resolve_editor_window() -> tuple[int, ResolveWindows]:
     # Check whether Resolve.exe is running: if not, launch it
     pid = find_resolve_pid()
@@ -136,7 +148,7 @@ def activate_resolve_editor_window() -> tuple[int, ResolveWindows]:
         if hwnds.editor:
             print("Activating main editor window...")
             win32gui.ShowWindow(hwnds.editor, win32con.SW_SHOWMAXIMIZED)
-            win32gui.SetForegroundWindow(hwnds.editor)
+            set_foreground_window(hwnds.editor)
             win32api.Sleep(100)
             return pid, hwnds
 
@@ -154,7 +166,7 @@ def activate_resolve_editor_window() -> tuple[int, ResolveWindows]:
     # already selected
     print("Activating solo project manager window...")
     win32gui.ShowWindow(solo_projects_hwnd, win32con.SW_SHOW)
-    win32gui.SetForegroundWindow(solo_projects_hwnd)
+    set_foreground_window(solo_projects_hwnd)
 
     # Send a LMB click event at the location of the "Open" button in the lower-right
     print("Clicking 'Open' to switch to main editor window...")
@@ -170,7 +182,7 @@ def activate_resolve_editor_window() -> tuple[int, ResolveWindows]:
         if hwnds.editor and not hwnds.projects and not hwnds.splash:
             print("Activating main editor window...")
             win32gui.ShowWindow(hwnds.editor, win32con.SW_SHOWMAXIMIZED)
-            win32gui.SetForegroundWindow(hwnds.editor)
+            set_foreground_window(hwnds.editor)
             win32api.Sleep(100)
             return pid, hwnds
 
@@ -184,7 +196,7 @@ def simulate_click(hwnd: int, x: int, y: int):
     win32api.Sleep(10)
 
     win32gui.ShowWindow(hwnd, win32con.SW_SHOW)
-    win32gui.SetForegroundWindow(hwnd)
+    set_foreground_window(hwnd)
 
     client_pos = win32api.MAKELONG(x, y)
     win32api.Sleep(10)
