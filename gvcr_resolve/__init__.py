@@ -58,7 +58,7 @@ def _transform_shorts_video_for_vcr(video_item):
     video_item.SetProperty('Pan', 186.0)
 
 
-def create_shorts_project(resolve, mkv_filepath):
+def create_shorts_project(resolve, mkv_filepath, markers):
     # Ensure that we have a valid OBS recording of the desired broadcast
     if not os.path.isfile(mkv_filepath):
         raise ValueError('input mkv does not exist at %s' % mkv_filepath)
@@ -116,6 +116,7 @@ def create_shorts_project(resolve, mkv_filepath):
     # Add our video tracks, with Track 1 last - as soon as Track 1 contains any clips,
     # AppendToTimeline will append new clips at the end time of that track, rather than
     # at the beginning of the sequence, when called with an implicit startFrame
+    print("Adding footage to timeline...")
     MEDIA_TYPE_VIDEO_ONLY = 1
     ok = media_pool.AppendToTimeline([{"mediaPoolItem": shortsbars_media_pool_item, "mediaType": MEDIA_TYPE_VIDEO_ONLY, "trackIndex": 4}])
     assert ok
@@ -155,6 +156,12 @@ def create_shorts_project(resolve, mkv_filepath):
     _transform_shorts_video_for_chat(chat_video_item)
     _transform_shorts_video_for_face(face_video_item)
     _transform_shorts_video_for_vcr(vcr_video_item)
+
+    # Iterate through our list of (marker_frame, marker_text) pairs and create a marker
+    # on the timeline to indicate where each tape starts
+    print("Adding markers to indicate start of each tape...")
+    for marker_frame, marker_text in markers:
+        timeline.AddMarker(marker_frame, 'Sand', marker_text, '', 1)
 
     # Adjust our overlay image to span the entire duration of the timeline: oh wait,
     # Resolve's scripting API is terrible and doesn't let us adjust the duration of
