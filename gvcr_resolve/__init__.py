@@ -231,7 +231,6 @@ def create_shorts_project(resolve, mkv_filepath, markers):
         print("Exporting to %s" % drp_filepath)
         project_manager.SaveProject()
         project_manager.ExportProject(project_name, drp_filepath)
-        project_manager.ExportProject(project_name, os.path.join(os.path.dirname(temp_dirpath), '%s.drp' % project_name))
 
         # Switch to a dummy project to unload the original project so we can delete it
         project_manager.LoadProject('_blank')
