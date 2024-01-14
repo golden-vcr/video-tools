@@ -6,6 +6,9 @@ import datetime
 import binascii
 import csv
 import json
+import tempfile
+import zipfile
+import time
 
 
 def _create_and_load_project_from_template(resolve, template_filename, project_name):
@@ -56,6 +59,56 @@ def _transform_shorts_video_for_vcr(video_item):
     video_item.SetProperty('ZoomX', 1.375)
     video_item.SetProperty('ZoomY', 1.375)
     video_item.SetProperty('Pan', 186.0)
+
+
+def _mutate_drp_to_extend_clip_duration(drp_filepath, video_item_name, duration):
+    # Open the .drp file, which is a ZIP archive containing a few files describing the
+    # Resolve project
+    drp_tmp_filepath = drp_filepath + '.tmp'
+    with zipfile.ZipFile(drp_filepath) as drp_file:
+        # We should have exactly one timeline, with a corresponding
+        # SeqContainer/<uuid>.xml file
+        sequence_file_paths = [f for f in drp_file.namelist() if f.startswith('SeqContainer/') and f.endswith('.xml')]
+        if len(sequence_file_paths) != 1:
+            raise RuntimeError('Expected 1 SeqContainer/*.xml file in %s; got %d' % (drp_filepath, len(sequence_file_paths)))
+
+        # Read the contents of that file, which should be an XML document
+        sequence_file_path = sequence_file_paths[0]
+        with drp_file.open(sequence_file_path) as sequence_file:
+            sequence_file_data = sequence_file.read()
+
+        # Process that XML document as plain-text, iterating line-by-line and changing
+        # only the duration of the clip that matches the desired name
+        has_seen_clip_name = False
+        has_updated_clip_duration = False
+        updated_lines = []
+        sep = b'\r\n' if b'\r\n' in sequence_file_data else b'\n'
+        for line in sequence_file_data.split(sep):
+            line = line.decode()
+            updated_line = line
+            if not has_updated_clip_duration:
+                if has_seen_clip_name:
+                    if '<Duration>' in line and '</Duration>' in line:
+                        updated_line = line[:line.index('>')+1] + str(duration) + '</Duration>'
+                        has_updated_clip_duration = True
+                else:
+                    if ('<Name>%s</Name>' % video_item_name) in line:
+                        has_seen_clip_name = True
+            updated_lines.append(updated_line)
+        updated_sequence_file_data = sep.join([s.encode() for s in updated_lines]) + sep
+
+        # Write a new .drp ZIP file at a temporary location, replacing the original
+        # timeline XML file with our updated version
+        with zipfile.ZipFile(drp_tmp_filepath, 'w') as drp_tmp_file:
+            for item in drp_file.infolist():
+                if item.filename == sequence_file_path:
+                    drp_tmp_file.writestr(item, updated_sequence_file_data)
+                else:
+                    drp_tmp_file.writestr(item, drp_file.read(item))
+
+    # Replace the original .drp file with our new version
+    os.remove(drp_filepath)
+    os.rename(drp_tmp_filepath, drp_filepath)
 
 
 def create_shorts_project(resolve, mkv_filepath, markers):
@@ -153,6 +206,7 @@ def create_shorts_project(resolve, mkv_filepath, markers):
 
     # Transform each video clip so that the individual elements of the stream layout are
     # stacked vertically
+    print("Applying video transforms to build vertical layout...")
     _transform_shorts_video_for_chat(chat_video_item)
     _transform_shorts_video_for_face(face_video_item)
     _transform_shorts_video_for_vcr(vcr_video_item)
@@ -163,18 +217,47 @@ def create_shorts_project(resolve, mkv_filepath, markers):
     for marker_frame, marker_text in markers:
         timeline.AddMarker(marker_frame, 'Sand', marker_text, '', 1)
 
-    # Adjust our overlay image to span the entire duration of the timeline: oh wait,
-    # Resolve's scripting API is terrible and doesn't let us adjust the duration of
-    # clips on the timeline; guess we'll just make the user do it manually
+    # We need to extend our _resolve_shortbars.png image overlay clip to match the
+    # full duration of the timeline, but the Resolve scripting API does not let us set
+    # the duration of a clip, so we need to export the entire project to .drp, modify
+    # that .drp on disk to set the duration of our clip, then re-import the project
+    project_name = project.GetName()
+    project_manager = resolve.GetProjectManager()
+    video_item_name = blackbars_video_item.GetName()
     duration = int(timeline.GetEndFrame()) - int(timeline.GetStartFrame())
-    print('Duration for image clip: %d' % duration)
-    print('Select the %s clip, press Ctrl+D, and enter that value.' % blackbars_video_item.GetName())
-    print('Then link all clips. Thanks, Resolve.')
+    with tempfile.TemporaryDirectory() as temp_dirpath:
+        # Export the project to disk so we can manipulate the timing of clips
+        drp_filepath = os.path.join(temp_dirpath, '%s.drp' % project_name)
+        print("Exporting to %s" % drp_filepath)
+        project_manager.SaveProject()
+        project_manager.ExportProject(project_name, drp_filepath)
+        project_manager.ExportProject(project_name, os.path.join(os.path.dirname(temp_dirpath), '%s.drp' % project_name))
 
-    # Link all our clips together so they can be edited as a single item; except wait,
-    # we can't do that because we can't programmatically set the black bars image to the
-    # proper duration
-    return
+        # Switch to a dummy project to unload the original project so we can delete it
+        project_manager.LoadProject('_blank')
+
+        # Delete the original project so we'll be able to reimport it with the same name
+        project_manager.DeleteProject(project_name)
+
+        # Modify the .drp so that the duration of our blackbars clip in this timeline is
+        # extended to match the full duration of the timeline
+        _mutate_drp_to_extend_clip_duration(drp_filepath, video_item_name, duration)
+
+        # Import and reload the project from the modified .drp
+        print("Re-importing from %s" % drp_filepath)
+        project_manager.ImportProject(drp_filepath)
+        project_manager.LoadProject(project_name)
+
+    # Re-acquire references now that we've loaded a new project
+    project = resolve.GetProjectManager().GetCurrentProject()
+    timeline = project.GetCurrentTimeline()
+    audio_item = timeline.GetItemListInTrack('audio', 1)[0]
+    chat_video_item = timeline.GetItemListInTrack('video', 1)[0]
+    face_video_item = timeline.GetItemListInTrack('video', 2)[0]
+    vcr_video_item = timeline.GetItemListInTrack('video', 3)[0]
+    blackbars_video_item = timeline.GetItemListInTrack('video', 4)[0]
+
+    # Link all our clips together so they can be edited as a single item
     ok = timeline.SetClipsLinked([
         blackbars_video_item,
         vcr_video_item,
@@ -183,6 +266,8 @@ def create_shorts_project(resolve, mkv_filepath, markers):
         audio_item,
     ], True)
     assert ok
+
+    print('Ready for edit.')
 
 
 def create_vhs_project(resolve, tape_id, videos):
