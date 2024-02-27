@@ -290,6 +290,7 @@ def create_vhs_project(resolve, tape_id, videos):
 
     # Open a new project with a resolution of 1440x1080 and a framerate of 59.94 FPS
     _create_and_load_project_from_template(resolve, '_resolve_1440x1080_5994.drp', tape_id)
+    project = resolve.GetProjectManager().GetCurrentProject()
 
     # Import each of our clips, creating a MediaPoolItem for each one
     print("Importing clips...")
