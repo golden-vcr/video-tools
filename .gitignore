@@ -7,6 +7,10 @@
 # clips for a given tape, we can cut them to storage/<tape-id>, apporpriately named
 /storage/
 
+# alerts/ and emotes/ are used to store rendered/processed emotes for animated elements
+/alerts/
+/emotes/
+
 # The OBS install script temporarily downloads a portable OBS .zip file
 OBS-Studio-*.zip
 
